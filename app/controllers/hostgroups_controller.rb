@@ -1,9 +1,10 @@
 class HostgroupsController < ApplicationController
   include Foreman::Controller::HostDetails
   include Foreman::Controller::AutoCompleteSearch
+  before_filter :find_by_name, :only => [:nest, :clone, :edit, :update, :destroy]
 
   def index
-    @hostgroups = Hostgroup.authorized(:view_hostgroups).my_groups.search_for(params[:search], :order => params[:order]).paginate(:page => params[:page])
+    @hostgroups = resource_base.search_for(params[:search], :order => params[:order]).paginate :page => params[:page]
   end
 
   def new
@@ -11,7 +12,7 @@ class HostgroupsController < ApplicationController
   end
 
   def nest
-    @parent = @hostgroup = find_hostgroup
+    @parent = @hostgroup
     @hostgroup = @parent.dup
     #overwrite parent_id and name
     @hostgroup.parent_id = params[:id]
@@ -28,7 +29,6 @@ class HostgroupsController < ApplicationController
 
   # Clone the hostgroup
   def clone
-    @hostgroup = find_hostgroup
     new = @hostgroup.dup
     load_vars_for_ajax
     new.puppetclasses = @hostgroup.puppetclasses
@@ -58,12 +58,10 @@ class HostgroupsController < ApplicationController
   end
 
   def edit
-    @hostgroup = find_hostgroup(:edit_hostgroups)
     load_vars_for_ajax
   end
 
   def update
-    @hostgroup = find_hostgroup(:edit_hostgroups)
     # remove from hash :root_pass if blank?
     params[:hostgroup].except!(:root_pass) if params[:hostgroup][:root_pass].blank?
     if @hostgroup.update_attributes(params[:hostgroup])
@@ -75,7 +73,6 @@ class HostgroupsController < ApplicationController
   end
 
   def destroy
-    @hostgroup = find_hostgroup(:destroy_hostgroups)
     begin
       if @hostgroup.destroy
         process_success
@@ -120,10 +117,6 @@ class HostgroupsController < ApplicationController
 
   private
 
-  def find_hostgroup(permission = :view_hostgroups)
-    Hostgroup.authorized(permission).find(params[:id])
-  end
-
   def load_vars_for_ajax
     return unless @hostgroup
     @architecture    = @hostgroup.architecture
@@ -141,6 +134,15 @@ class HostgroupsController < ApplicationController
 
   def subscribed_users
     User.where(:subscribe_to_all_hostgroups => true)
+  end
+
+  def action_permission
+    case params[:action]
+      when 'nest', 'clone'
+        'view'
+      else
+        super
+    end
   end
 
 end
