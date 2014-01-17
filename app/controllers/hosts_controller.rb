@@ -551,7 +551,7 @@ class HostsController < ApplicationController
       when 'power'
         :power
       when 'ipmi_boot'
-        :ipmi
+        :ipmi_boot
       when 'console'
         :console
       when 'toggle_manage', 'multiple_parameters', 'update_multiple_parameters',
