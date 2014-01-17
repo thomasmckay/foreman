@@ -47,7 +47,7 @@ module Api
       @resource_scope ||= begin
         scope = resource_class.scoped
         if resource_class.respond_to?(:authorized)
-          scope.authorized("#{action_permission}_#{controller}")
+          scope.authorized("#{action_permission}_#{controller}", resource_class)
         else
           scope
         end
@@ -264,10 +264,11 @@ module Api
         'edit'
       when 'destroy'
         'destroy'
-      when 'index', 'show'
+      when 'index', 'show', 'status'
         'view'
-      else
-        params[:action]
+        else
+          p params[:action]
+        raise ::Foreman::Exception, "unknown permission for #{params[:controller]}##{params[:action]}"
       end
     end
   end
