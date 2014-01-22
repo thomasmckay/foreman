@@ -1,7 +1,11 @@
 class MigratePermissions < ActiveRecord::Migration
   def self.up
-    migrate_roles
-    migrate_user_filters
+    if old_permissions_present
+      migrate_roles
+      migrate_user_filters
+    else
+      say 'Skipping migration of permissions, since old permissions are not present'
+    end
   end
 
   # STEP 1 - migrate roles
@@ -13,7 +17,7 @@ class MigratePermissions < ActiveRecord::Migration
 
       # role without permissions? nothing to do then
       if role.attributes['permissions'].nil?
-        puts "no old permissions found for role '#{role.name}', skipping"
+        say "no old permissions found for role '#{role.name}', skipping"
         next
       end
 
@@ -36,14 +40,14 @@ class MigratePermissions < ActiveRecord::Migration
         filter      = Filter.new
         filter.role = role
         filter.save!
-        puts "Created an unlimited filter for role '#{role.name}'"
+        say "Created an unlimited filter for role '#{role.name}'"
 
         permissions.each do |permission|
           filtering            = Filtering.new
           filtering.filter     = filter
           filtering.permission = Permission.find_by_name(permission.name)
           filtering.save!
-          puts "... with permission '#{permission.name}'"
+          say "... with permission '#{permission.name}'"
         end
       end
 
@@ -53,9 +57,9 @@ class MigratePermissions < ActiveRecord::Migration
   end
 
   def self.clear_old_permission(role)
-    puts "Clearing old permissions for role '#{role.name}'"
+    say "Clearing old permissions for role '#{role.name}'"
     if Role.update_all("permissions = NULL", "id = #{role.id}") == 1
-      puts "... OK"
+      say "... OK"
     else
       raise "could not clear old permissions for role '#{role.name}'"
     end
@@ -68,15 +72,15 @@ class MigratePermissions < ActiveRecord::Migration
     users = User.all
     users.each do |user|
       unless filtered?(user)
-        puts "no filters found for user '#{user.login}', skipping"
+        say "no filters found for user '#{user.login}', skipping"
         next
       end
 
-      puts "Migrating user '#{user.login}'"
-      puts "... cloning all roles"
+      say "Migrating user '#{user.login}'"
+      say "... cloning all roles"
       clones     = user.roles.builtin(false).map { |r| clone_role(r, user) }
       user.roles = clones + user.roles.builtin(true)
-      puts "... done"
+      say "... done"
 
       filters                     = Hash.new { |h, k| h[k] = '' }
 
@@ -86,7 +90,7 @@ class MigratePermissions < ActiveRecord::Migration
       affected.each do |filter|
         filter.update_attributes :search => search unless search.blank?
       end
-      puts "... compute resource filters applied"
+      say "... compute resource filters applied"
 
       # domains were not limited in old system, to keep it compatible, we don't convert it and use just search string
       # later for hosts
@@ -98,7 +102,7 @@ class MigratePermissions < ActiveRecord::Migration
       affected.each do |filter|
         filter.update_attributes :search => search unless search.blank?
       end
-      puts "... hostgroups filters applied"
+      say "... hostgroups filters applied"
 
       # fact_values for hosts scope
       filters[:facts] = user.user_facts.uniq.map { |uf| "facts.#{uf.fact_name.name} #{uf.operator} #{uf.criteria}" }.join(' or ')
@@ -109,16 +113,16 @@ class MigratePermissions < ActiveRecord::Migration
       affected.each do |filter|
         filter.update_attributes :search => search unless search.blank?
       end
-      puts "... all other filters applied"
+      say "... all other filters applied"
 
-      puts "Removing old filter"
+      say "Removing old filter"
       user.domains           = []
       user.compute_resources = []
       user.hostgroups        = []
       user.facts             = []
       user.filter_on_owner   = false
       user.save!
-      puts "... done"
+      say "... done"
     end
   end
 
@@ -156,6 +160,42 @@ class MigratePermissions < ActiveRecord::Migration
     # fix first and/or that could appear
     search = search.sub(/^\s*(and|or)\s*/, '')
     search
+  end
+
+  def self.filtered?(user)
+    user.compute_resources.present? ||
+        user.domains.present? ||
+        user.hostgroups.present? ||
+        user.facts.present? ||
+        user.filter_on_owner
+  end
+
+  def self.clone_role(role, user)
+    clone      = role.dup
+    clone.name = role.name + "_#{user.login}"
+    clone.save!
+
+    role.filters.each { |f| clone_filter(f, clone) }
+
+    clone.reload
+  end
+
+  def self.clone_filter(filter, role)
+    clone             = filter.dup
+    clone.permissions = filter.permissions
+    clone.role        = role
+    clone.save!
+  end
+
+
+  def self.old_permissions_present
+    user = User.new
+    Role.column_names.include?('permissions') &&
+        user.respond_to?(:compute_resources) &&
+        user.respond_to?(:domains) &&
+        user.respond_to?(:hostgroups) &&
+        user.respond_to?(:facts) &&
+        user.respond_to?(:filter_on_owner)
   end
 
   def self.down
