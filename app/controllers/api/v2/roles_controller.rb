@@ -1,7 +1,6 @@
 module Api
   module V2
     class RolesController < V2::BaseController
-      before_filter :require_admin
       before_filter :find_resource, :only => %w{show update destroy}
 
       api :GET, "/roles/", "List all roles."
@@ -9,7 +8,7 @@ module Api
       param :per_page, String, :desc => "number of entries per request"
 
       def index
-        @roles = Role.search_for(*search_options).paginate(paginate_options)
+        @roles = Role.authorized(:view_roles).search_for(*search_options).paginate(paginate_options)
       end
 
       api :GET, "/roles/:id/", "Show an role."
