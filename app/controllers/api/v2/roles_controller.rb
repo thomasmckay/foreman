@@ -8,7 +8,7 @@ module Api
       param :per_page, String, :desc => "number of entries per request"
 
       def index
-        @roles = Role.authorized(:view_roles).search_for(*search_options).paginate(paginate_options)
+        @roles = Role.search_for(*search_options).paginate(paginate_options)
       end
 
       api :GET, "/roles/:id/", "Show an role."
