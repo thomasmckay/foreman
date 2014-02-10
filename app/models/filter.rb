@@ -2,6 +2,15 @@ class Filter < ActiveRecord::Base
   include Taxonomix
   include Authorizable
 
+  # tune up taxonomix for filters, we don't want to set current taxonomy
+  def self.add_current_organization?
+    false
+  end
+
+  def self.add_current_location?
+    false
+  end
+
   attr_accessible :search, :resource_type, :permission_ids, :role_id, :unlimited,
                   :organization_ids, :location_ids
   attr_writer :resource_type
@@ -11,24 +20,20 @@ class Filter < ActiveRecord::Base
   has_many :filterings, :dependent => :destroy
   has_many :permissions, :through => :filterings
 
-  # with proc support, default_scope can no longer be chained
-  # include all default scoping here
-  default_scope lambda { with_taxonomy_scope }
-
-  scope :unlimited, lambda { where(:search => nil) }
-  scope :limited, lambda { where("search IS NOT NULL") }
+  scope :unlimited, lambda { where(:search => nil, :taxonomy_search => nil) }
+  scope :limited, lambda { where("search IS NOT NULL OR taxonomy_search IS NOT NULL") }
 
   scoped_search :on => :search, :complete_value => true
   scoped_search :in => :role, :on => :id, :rename => :role_id
   scoped_search :in => :role, :on => :name, :rename => :role
   scoped_search :in => :permissions, :on => :resource_type, :rename => :resource
 
-  before_validation :set_unlimited_filter, :if => Proc.new { |o| o.unlimited == '1' }
+  before_validation :build_taxonomy_search, :nilify_empty_searches
 
   validates :search, :presence => true, :unless => Proc.new { |o| o.search.nil? }
 
   def unlimited?
-    search.nil?
+    search.nil? && taxonomy_search.nil?
   end
 
   def limited?
@@ -60,10 +65,44 @@ class Filter < ActiveRecord::Base
     end
   end
 
+  def search_condition
+    searches = [self.search, self.taxonomy_search].compact
+    searches = searches.map { |s| parenthize(s) } if searches.size > 1
+    searches.join(' and ')
+  end
+
   private
 
-  def set_unlimited_filter
-    self.search = nil
+  def build_taxonomy_search
+    orgs = build_taxonomy_search_string('organization')
+    locs = build_taxonomy_search_string('location')
+
+    if self.organizations.empty? && self.locations.empty?
+      self.taxonomy_search = nil
+    else
+      taxonomies = [orgs, locs].reject {|t| t.blank? }
+      self.taxonomy_search = taxonomies.join(' and ')
+    end
+  end
+
+  def build_taxonomy_search_string(name)
+    relation = name.pluralize
+    taxes = self.send(relation).empty? ? [] : self.send(relation).map { |t| "#{name}_id = #{t.id}" }
+    taxes = taxes.join(' or ')
+    parenthize(taxes)
+  end
+
+  def nilify_empty_searches
+    self.search = nil if self.search.empty? || self.unlimited == '1'
+    self.taxonomy_search = nil if self.taxonomy_search.empty?
+  end
+
+  def parenthize(string)
+    if string.blank? || (string.start_with?('(') && string.end_with?(')'))
+      string
+    else
+      "(#{string})"
+    end
   end
 
 end
