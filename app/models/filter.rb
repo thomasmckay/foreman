@@ -31,6 +31,9 @@ class Filter < ActiveRecord::Base
   before_validation :build_taxonomy_search, :nilify_empty_searches
 
   validates :search, :presence => true, :unless => Proc.new { |o| o.search.nil? }
+  validates :role_id, :presence => true
+  validate :same_resource_type_permissions, :not_empty_permissions
+
 
   def unlimited?
     search.nil? && taxonomy_search.nil?
@@ -45,7 +48,8 @@ class Filter < ActiveRecord::Base
   end
 
   def resource_type
-    @resource_type ||= permissions.first.try(:resource_type)
+    type = @resource_type || permissions.first.try(:resource_type)
+    type.blank? ? nil : type
   end
 
   def resource_class
@@ -103,6 +107,15 @@ class Filter < ActiveRecord::Base
     else
       "(#{string})"
     end
+  end
+
+  # if we have 0 types, empty validation will set error, we can't have more than one type
+  def same_resource_type_permissions
+    errors.add(:permissions, _('Permissions must be of same resource type')) if self.permissions.map(&:resource_type).uniq.size > 1
+  end
+
+  def not_empty_permissions
+    errors.add(:permissions, _('You must select at least one permission')) unless self.permissions.present?
   end
 
 end
