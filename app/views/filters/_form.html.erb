@@ -41,7 +41,7 @@
           <%= checkbox_f f, :unlimited?,
               :help_inline => _("By unchecking this you can configure filter using scoped_search syntax in search field") %>
 
-        <% path = f.object.resource_type.present? ? send("#{f.object.resource_type.pluralize.underscore}_path") : '' %>
+        <% path = f.object.resource_type.present? ? "/#{f.object.resource_type.pluralize.underscore}" : '' %>
           <%= autocomplete_f f, :search,
                              :disabled => f.object.unlimited?,
                              :path => path, :control_group_id => 'search_group' %>
