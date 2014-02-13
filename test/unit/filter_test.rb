@@ -31,6 +31,7 @@ class FilterTest < ActiveSupport::TestCase
 
   test "#resource_type for empty permissions collection" do
     f = Factory.build(:filter)
+    f.permissions = []
     assert_nil f.resource_type
   end
 

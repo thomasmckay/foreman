@@ -136,11 +136,6 @@ class AuthorizerTest < ActiveSupport::TestCase
     refute auth.can?(:edit_domains, domain3)
     assert auth.can?(:edit_domains, domain4)
 
-    # unlimited filter without permission does not add anything
-    filter3 = FactoryGirl.create(:filter, :role => @role)
-    collection = auth.find_collection(Domain)
-    assert_equal [domain2, domain3, domain4], collection
-
     # unlimited filter on Domain permission does add the domain
     filter4 = FactoryGirl.create(:filter, :role => @role, :permissions => [permission1])
     collection = auth.find_collection(Domain)
