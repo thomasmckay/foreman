@@ -50,6 +50,6 @@ end
 # now we load all seed files
 Dir.glob(Rails.root + 'db/seeds.d/*.rb').sort.each do |seed|
   puts "Seeding #{seed}"
-  require seed
+  load seed
 end
 puts "All seed files executed"
