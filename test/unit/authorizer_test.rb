@@ -224,4 +224,25 @@ class AuthorizerTest < ActiveSupport::TestCase
 
     assert_equal '(1=1)', result
   end
+
+  test "#can? with empty base collection set" do
+    domain     = FactoryGirl.create(:domain)
+    permission = Permission.find_by_name('view_domains')
+    filter     = FactoryGirl.create(:filter, :role => @role, :permissions => [permission])
+    auth       = Authorizer.new(@user, [])
+
+    refute auth.can?(:view_domains, domain)
+  end
+
+  test "#can? with excluding base collection set" do
+    permission = Permission.find_by_name('view_domains')
+    filter1    = FactoryGirl.create(:filter, :on_name_starting_with_a,
+                                     :role => @role, :permissions => [permission])
+    domain1    = FactoryGirl.create(:domain, :name => 'a-domain.to-be-found.com')
+    domain2    = FactoryGirl.create(:domain, :name => 'another-domain.to-be-found.com')
+    auth       = Authorizer.new(@user, [domain2])
+
+    refute auth.can?(:view_domains, domain1)
+    assert auth.can?(:view_domains, domain2)
+  end
 end

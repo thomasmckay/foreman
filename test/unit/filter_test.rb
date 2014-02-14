@@ -42,6 +42,26 @@ class FilterTest < ActiveSupport::TestCase
     end
   end
 
+  test "#resource_class known" do
+    f = Factory.build(:filter, :resource_type => 'Bookmark')
+    assert_equal Bookmark, f.resource_class
+  end
+
+  test "#resource_class unknown" do
+    f = Factory.build(:filter, :resource_type => 'BookmarkThatDoesNotExist')
+    assert_nil f.resource_class
+  end
+
+  test "#granular? for unknown resource type" do
+    f = Factory.build(:filter, :resource_type => 'BookmarkThatDoesNotExist')
+    refute f.granular?
+  end
+
+  test "#granular?" do
+    f = Factory.build(:filter, :resource_type => 'Domain')
+    assert f.granular?
+  end
+
   test "unlimited filters have nilified search string" do
     f = Factory.build(:filter, :search => 'name ~ a*', :unlimited => '1')
     assert f.valid?
