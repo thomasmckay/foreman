@@ -25,7 +25,7 @@ class PermissionsController < ApplicationController
           '' # host classes is only used in API
         when 'Parameter'
           '' # parameter is only used in API
-        when 'ActivationKey'
+        when 'Katello::ActivationKey'
           'katello/activation_keys' + '/auto_complete_search'
         else
           send(type.pluralize.underscore + '_path') + '/auto_complete_search'
