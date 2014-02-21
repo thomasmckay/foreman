@@ -236,7 +236,8 @@ Foreman::AccessControl.map do |map|
 
     map.permission :view_hostgroups,       {:hostgroups => [:index, :show, :auto_complete_search],
                                             :"api/v1/hostgroups" => [:index, :show],
-                                            :"api/v2/hostgroups" => [:index, :show]
+                                            :"api/v2/hostgroups" => [:index, :show],
+                                            :"/api/v2/parameters" => [:show]
                                           }
     map.permission :create_hostgroups,     {:hostgroups => [:new, :create, :clone, :nest, :process_hostgroup].push(*ajax_actions),
                                             :host => host_ajax_actions,
